@@ -51,7 +51,7 @@
   <div id="quizContainer" style="margin-top: 20px;"></div>
 
   <!-- Âm thanh -->
-  <audio id="correctSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_f38e180b2b.mp3"></audio>
+  <audio id="correctSound" src="correct-156911.mp3" preload="auto"></audio>
   <audio id="incorrectSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3"></audio>
 
   <script>
@@ -66,11 +66,20 @@
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-        questions = shuffle(rows.slice(1).map(row => ({
-          question: row[0],
-          options: shuffle([row[1], row[2], row[3], row[4], row[5]]),
-          answer: row[6]
-        })));
+    questions = shuffle(
+      rows.slice(1)
+        .filter(row => row[0] && row[6]) // đảm bảo có câu hỏi và đáp án
+        .map(row => {
+          const options = [row[1], row[2], row[3], row[4], row[5]].filter(opt => opt); // loại bỏ các lựa chọn bị trống
+          return {
+            question: row[0],
+            options: shuffle(options),
+            answer: row[6]
+          };
+        })
+        .filter(q => q.options.length >= 2) // đảm bảo có ít nhất 2 đáp án
+    );
+
         currentIndex = 0;
         score = 0;
         showQuestion();
@@ -143,7 +152,7 @@
       setTimeout(() => {
         currentIndex++;
         showQuestion();
-      }, 4000);
+      }, 3000);
     }
   </script>
 </body>
