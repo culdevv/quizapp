@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz from Excel</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+      background: url('background.png') no-repeat center center fixed;
+      background-size: cover;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #fff;
+      text-shadow: 1px 1px 3px #000;
+    }
+    button {
+      display: block;
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      border: none;
+      border-radius: 5px;
+      background: #f0f0f0;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #e0e0e0;
+    }
+    .correct {
+      background-color: #b2f2bb !important;
+    }
+    .incorrect {
+      background-color: #ffa8a8 !important;
+    }
+    .correct-answer {
+      border: 2px solid green;
+    }
+  </style>
+</head>
+<body>
+  <h1>Quiz from Excel</h1>
+  <input type="file" id="fileInput" accept=".xlsx, .xls" />
+  <div id="quizContainer" style="margin-top: 20px;"></div>
+
+  <!-- Âm thanh -->
+  <audio id="correctSound" src="correct-156911.mp3" preload="auto"></audio>
+  <audio id="incorrectSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3"></audio>
+
+  <script>
+    let questions = [];
+    let currentIndex = 0;
+    let score = 0;
+
+    document.getElementById('fileInput').addEventListener('change', function (e) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    questions = shuffle(
+      rows.slice(1)
+        .filter(row => row[0] && row[6]) // đảm bảo có câu hỏi và đáp án
+        .map(row => {
+          const options = [row[1], row[2], row[3], row[4], row[5]].filter(opt => opt); // loại bỏ các lựa chọn bị trống
+          return {
+            question: row[0],
+            options: shuffle(options),
+            answer: row[6]
+          };
+        })
+        .filter(q => q.options.length >= 2) // đảm bảo có ít nhất 2 đáp án
+    );
+
+        currentIndex = 0;
+        score = 0;
+        showQuestion();
+      };
+      reader.readAsArrayBuffer(e.target.files[0]);
+    });
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function showQuestion() {
+      const container = document.getElementById('quizContainer');
+      container.innerHTML = '';
+
+      if (currentIndex >= questions.length) {
+        container.innerHTML = `<h2 style="text-align:center; color: white; text-shadow: 1px 1px 3px #000;">Score: ${score}/${questions.length}</h2>`;
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = "Làm lại";
+        retryBtn.onclick = () => {
+          currentIndex = 0;
+          score = 0;
+          questions = shuffle(questions.map(q => ({
+            ...q,
+            options: shuffle([...q.options])
+          })));
+          showQuestion();
+        };
+        container.appendChild(retryBtn);
+        return;
+      }
+
+      const q = questions[currentIndex];
+      const questionEl = document.createElement('p');
+      questionEl.textContent = `Q${currentIndex + 1}: ${q.question}`;
+      questionEl.style.color = 'white';
+      questionEl.style.textShadow = '1px 1px 2px black';
+      container.appendChild(questionEl);
+
+      q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.textContent = opt;
+        btn.onclick = () => handleAnswer(btn, opt, q.answer);
+        container.appendChild(btn);
+      });
+    }
+
+    function handleAnswer(button, selected, correct) {
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach(btn => btn.disabled = true);
+
+      if (selected === correct) {
+        button.classList.add('correct');
+        document.getElementById('correctSound').play();
+        score++;
+      } else {
+        button.classList.add('incorrect');
+        document.getElementById('incorrectSound').play();
+        buttons.forEach(btn => {
+          if (btn.textContent === correct) {
+            btn.classList.add('correct-answer');
+          }
+        });
+      }
+
+      setTimeout(() => {
+        currentIndex++;
+        showQuestion();
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
